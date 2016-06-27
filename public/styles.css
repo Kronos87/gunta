@@ -1,0 +1,33 @@
+body {
+    font-family: sans-serif;
+}
+
+.gameLink {
+    color: orange;
+}
+
+.leaveGame {
+    color: red;
+}
+
+.startGame {
+    color: blue;
+}
+
+#ajaxLoaderGif {
+    width: 100px;
+}
+
+.hidden {
+    display: none;
+}
+
+.playerStatus {
+    margin-top: 10px;
+    margin-bottom: 10px;
+
+    padding: 5px;
+
+    border: 1px solid black;
+    width: 200px;
+}

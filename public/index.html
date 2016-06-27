@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="styles.css">
+    <title>Gunta - Hau Weg!</title>
+</head>
+
+<body>
+<script src="jquery-1.12.3.js"></script>
+<script>
+// Wenn das Dokument geladen wurde, führe den Code aus
+$(document).ready(function() {
+
+    var localPlayer = null;
+    var continueable = false;
+
+    // Hilfsfunktionen für Ajax Requests
+    function postReq(url, data, handler) {
+        $.ajax({url: url,
+          data : JSON.stringify(data),
+          contentType : 'application/json',
+          type : 'POST',
+          dataType : 'json',
+          success : handler
+      });
+    }
+
+    function getReq(url, data, handler) {
+        /*
+        $.ajax({url: url,
+          data : JSON.stringify(data),
+          contentType : 'application/json',
+          type : 'GET',
+          dataType : 'json',
+          success : handler
+        });
+        */
+
+        // jquery Abkürzung ausreichend
+        $.get(url, data, handler);
+  }
+
+  // Create Game Button auf Click Event abfragen
+  $('#btnCreateGame').click(function() {
+    var data = { username: $("#txtUsername").val() };
+
+    postReq('/createGame', data, function(res) {
+        console.log(res);
+
+        // TODO
+        updateGameSearch();
+    });
+  });
+
+  // Game Links auf Click Event abfragen
+  $(document).on("click", ".gameLink", function(event) {
+      event.preventDefault();
+
+      // Request Daten erstellen, damit der Server weiß worum es sich handelt
+      var data = { username: $("#txtUsername").val(), game: $(this).context.id };
+
+      postReq('/joinGame', data, function(res) {
+
+          $('#btnRollDice').removeClass('hidden');
+
+          updateGameSearch();
+      });
+  });
+
+  // Spiel verlassen Link abfragen
+  $(document).on("click", ".leaveGame", function(event) {
+      event.preventDefault();
+
+      // Request Daten erstellen, damit der Server weiß worum es sich handelt
+      var data = { username: $("#txtUsername").val(), game: $(this).context.id };
+
+      postReq('/leaveGame', data, function(res) {
+          localPlayer = null;
+          updateGameSearch();
+      });
+  });
+
+  // Spiel starten Link abfragen
+  $(document).on("click", ".startGame", function(event) {
+      event.preventDefault();
+
+      continueable = true;
+
+      if(localPlayer.game.started)
+        return;
+
+      // Request Daten erstellen, damit der Server weiß worum es sich handelt
+      var gameName = $(this).context.id;
+      console.log(gameName);
+      var data = { username: $("#txtUsername").val(), game: gameName };
+
+      postReq('/startGame', data, function(res) {
+
+          if(res.res == "good") {
+              // TODO
+
+          }
+
+          updateGameSearch();
+      });
+  });
+
+  // aktualisiere Spielsuche automatisch alle 2 sek
+  function updateGameSearch() {
+      if(localPlayer != null) {
+          if(localPlayer.game.started && continueable) {
+              $('#divGameBrowser').addClass('hidden');
+              $('#divGameField').removeClass('hidden');
+              console.log("update game search");
+              setTimeout(updateGameState, 500);
+              return;
+          }
+      }
+
+      getReq('/getGames', {}, function(games) {
+
+          getReq('/getPlayers', {}, function(players) {
+
+              games.forEach(function(game) {
+                game.players = [];
+                players.forEach(function(player) {
+                    if(player.game == game.name) {
+                        game.players.push(player);
+                    }
+
+                    if(player.username == $('#txtUsername').val()) {
+
+                    }
+                });
+              });
+
+              // HTML rendern
+              refreshGames(games);
+
+              setTimeout(updateGameSearch, 1000);
+          });
+
+      });
+  }
+
+  setTimeout(updateGameSearch, 1000);
+
+
+  function refreshGames(data) {
+
+      var pGameList = $('#pGameList');
+
+      pGameList.html("<h2>Games:</h2>");
+
+      data.forEach(function(game) {
+
+          pGameList.append('<p>');
+          pGameList.append('<a href="#" class="gameLink" id="' + game.name + '">' + game.name + '</a> (' + game.players.length + '/5)');
+
+          // Checken ob Spieler auch Ersteller ist, damit dieser das Spiel starten kann
+          if(game.creator == $("#txtUsername").val()) {
+              if(!continueable && game.started)
+                pGameList.append(' <a href="#" class="startGame" id="' + game.name + '">continue game</a>');
+              else
+                pGameList.append(' <a href="#" class="startGame" id="' + game.name + '">start game</a>');
+          } else {
+             // if(!continueable && game.started && localPlayer.game.name == game.name)
+              if(!continueable && game.started)
+                pGameList.append(' <a href="#" class="startGame" id="' + game.name + '">continue game</a>');
+          }
+
+          // Checken ob Spieler dem Spiel beigetreten ist, um es verlassen zu können
+          game.players.forEach(function(player) {
+              if(player.username == $('#txtUsername').val()) {
+                  // aktueller Spieler in gloabler variable speichern
+                  localPlayer = player;
+                  localPlayer.game = game;
+                  pGameList.append(' <a href="#" class="leaveGame" id="' + game.name + '">leave game</a>');
+              }
+          });
+
+          pGameList.append('<p>');
+      });
+  }
+
+
+  /// GAMEPLAY ///
+
+  // Diese Funktion aktualisiert das Spielfeld alle 1500 millisekunden
+  function updateGameState() {
+      // TODO
+
+      getReq('/getPlayers', {}, function(players) {
+
+          // HTML rendern
+          var divPlayerStats = $('#divPlayerStats');
+          // div Block leeren
+
+          divPlayerStats.html("");
+          players.forEach(function(player) {
+              //für jeden Spieler den Status erneuern
+
+              var divPlayerStatus = document.createElement('div');
+
+              $(divPlayerStatus).append("<p><strong>" + player.username + "</strong></p>");
+
+              for(var i=0; i < parseInt(player.dice.length); i++) {
+                  $(divPlayerStatus).append("<p>Würfel (" + (i + 1) + "): " + player.dice[i].diceValue + "</p>");
+              }
+
+              $(divPlayerStatus).addClass('playerStatus');
+              divPlayerStats.append($(divPlayerStatus));
+          });
+
+          setTimeout(updateGameState, 1500);
+      });
+
+  }
+
+  $('#btnRollDice').click(function() {
+      console.log("roll dice");
+
+     getReq('/rollDice', { username : localPlayer.username }, function(res) {
+         console.log(res);
+     }) ;
+  });
+
+}); //end document ready
+</script>
+
+<h1>Gunta - Hau Weg!</h1>
+
+<!-- Spielsuche -->
+
+<div id="divGameBrowser">
+    <p>
+        <input type="text" id="txtUsername" placeholder="Username">
+
+    </p>
+    <button id="btnCreateGame">create game</button>
+
+    <p id="pGameList">
+        <img src="ajax-loader.gif" id="ajaxLoaderGif">
+    </p>
+</div>
+
+<!-- Spielfeld -->
+
+<div id="divGameField" class="hidden">
+    <p>Game Field</p>
+    <button id="btnRollDice">roll dice</button>
+
+    <div id="divPlayerStats"></div>
+</div>
+
+</body>
+</html>
