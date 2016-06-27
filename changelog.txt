@@ -1,4 +1,0 @@
-Change log
-===========
-
-[16.06.16 : 12:16] : Man kann nun mit mehreren Spielern würfeln, diese werden dann automatisch bei jedem Spieler angezeigt.
